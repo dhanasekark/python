@@ -1,0 +1,41 @@
+Hi,
+
+Dnia poniedziałek, 16 maja 2022 21:08:21 CEST Dhanasekar Kandasamy pisze:
+> Hi,
+>
+> I want to understand the Port Creation process in OpenStack.
+>
+> 1. What happens in the background when we create a Port with Security
+> Groups?     Does it create the port in the Control Plane level or is
+> neutron involved in this?
+
+When You call neutron API e.g. with CLI like:
+
+openstack port create <network_id>
+
+then Neutron creates port in given network. It is just entry in the Neutron DB, nothing else.
+Neutron tries then to allocate IP address for the port from one of the subnets existing in that network (or from 2 subnets if there is IPv4 and IPv6 subnet available).
+When port is later used by e.g. Nova for some VM, Nova asks neutron to update port and to bind it on specific host. Neutron then tries to bind port with one of the available mechanism drivers. When port is bound, nova (os-vif) plugs port on the host (L1 provisioning) and then Neutron agent, or ovn-controller in case of ML2/OVN backend provisions port on the host.
+
+>
+> 2. How does the port obtain the IP address from DHCP and Who initiates this
+> DHCP Process?
+
+It depends on the used backend. In case of ML2/OVN it's OVN who provides DHCP service so DHCP entries are configured in OVN and OVN locally replies to the DHCP requests from the VM.
+In case of ML2/OVS (or Linuxbridge) there is DHCP agent which spawns and configures dnsmasq for each network. When You create port in Neutron and it allocates IP address, thennew lease is added in leases file so that dnsmasq knows what IP address should be given for specific MAC address.
+
+>
+> 3. Is there any docs/links available for the same?
+
+I'm not sure if there is something exactly like Your questions but You can find a lot of information in docs https://docs.openstack.org/neutron/latest/contributor/index.html#neutron-internals
+
+>
+> Thanks,
+> Dhana
+>
+
+
+--
+Slawek Kaplonski
+Principal Software Engineer
+Red Hat
